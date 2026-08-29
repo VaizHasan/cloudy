@@ -1,0 +1,7 @@
+-- CreateEnum
+CREATE TYPE "UserPlan" AS ENUM ('FREE');
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "plan" "UserPlan" NOT NULL DEFAULT 'FREE',
+ADD COLUMN     "storageQuota" BIGINT NOT NULL DEFAULT 10737418240,
+ADD COLUMN     "storageUsed" BIGINT NOT NULL DEFAULT 0;

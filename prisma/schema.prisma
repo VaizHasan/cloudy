@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String @id @default(cuid())
+  username     String @unique
+  email        String @unique
+  passwordHash String
+
+  storageQuota BigInt @default(10737418240)
+  storageUsed  BigInt @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  files   File[]
+  folders Folder[]
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  ownerId   String
+  name      String
+  parentId  String?
+  isDeleted Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  parent   Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Folder[] @relation("FolderTree")
+  files    File[]
+
+  @@index([ownerId])
+  @@index([parentId])
+  @@index([isDeleted])
+  @@index([ownerId, isDeleted])
+}
+
+model File {
+  id       String  @id @default(cuid())
+  ownerId  String
+  folderId String?
+
+  name       String
+  size       BigInt
+  mimeType   String
+  storageKey String @unique
+
+  isPublic   Boolean @default(false)
+  isFavorite Boolean @default(false)
+  isDeleted  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner      User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  folder     Folder?     @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  shareLinks ShareLink[]
+
+  @@index([ownerId])
+  @@index([folderId])
+  @@index([isPublic])
+  @@index([isFavorite])
+  @@index([isDeleted])
+}
+
+model ShareLink {
+  id        String    @id @default(cuid())
+  fileId    String
+  token     String    @unique
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+}
