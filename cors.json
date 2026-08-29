@@ -2,7 +2,8 @@
   {
     "corsRuleName": "cloudy-local",
     "allowedOrigins": [
-      "http://localhost:3000"
+      "http://localhost:3000",
+      "https://cloudy-v107u92q0k-vaiz-hasans-projects.vercel.app"
     ],
     "allowedOperations": [
       "s3_put",
