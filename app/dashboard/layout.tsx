@@ -12,7 +12,8 @@ import {
   LogOut,
   ChevronDown,
   Upload,
-  Cloud,
+  Menu,
+  X,
 } from "lucide-react";
 
 type DashboardLayoutProps = {
@@ -87,6 +88,9 @@ export default function DashboardLayout({
   });
 
   const [loadingStorage, setLoadingStorage] = useState(true);
+
+  // Mobile sidebar
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ------------------------------------------------------------
   // Load current user
@@ -181,6 +185,24 @@ export default function DashboardLayout({
       mounted = false;
     };
   }, []);
+
+  // Close mobile sidebar when route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Prevent background scrolling while mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
 
   // ------------------------------------------------------------
   // Page information
@@ -299,8 +321,160 @@ export default function DashboardLayout({
 
   return (
     <main className="min-h-screen bg-[#f5f7fb] text-slate-900">
+
       {/* ========================================================
-          SIDEBAR
+          MOBILE SIDEBAR OVERLAY
+          ======================================================== */}
+
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ========================================================
+          MOBILE SIDEBAR
+          ======================================================== */}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-[#0f172a] text-white transition-transform duration-300 lg:hidden ${mobileMenuOpen
+          ? "translate-x-0"
+          : "-translate-x-full"
+          }`}
+      >
+        {/* Logo */}
+
+        <div className="shrink-0 px-5 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1E3A5F] shadow-[0_2px_8px_rgba(30,58,95,0.18)]">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="text-white"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M7.25 18.25H17.5C19.9853 18.25 22 16.2353 22 13.75C22 11.3839 20.1746 9.44439 17.8559 9.26176C17.0325 6.58257 14.5337 4.625 11.575 4.625C8.28294 4.625 5.57922 7.04758 5.1384 10.2222C3.32091 10.6146 2 12.2261 2 14.125C2 16.4042 3.8458 18.25 6.125 18.25"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  <path
+                    d="M12 18V9.5M8.75 12.75L12 9.5L15.25 12.75"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-base font-semibold tracking-tight text-white">
+                  Cloudy
+                </p>
+
+                <p className="mt-0.5 truncate text-xs text-slate-400">
+                  Secure file storage
+                </p>
+              </div>
+            </div>
+
+            {/* Close */}
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
+              aria-label="Close menu"
+            >
+              <X size={20} strokeWidth={1.8} />
+            </button>
+          </div>
+        </div>
+
+        {/* Navigation */}
+
+        <nav className="flex-1 overflow-y-auto px-3">
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+            Workspace
+          </p>
+
+          {navigation.map((item, index) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+
+            return (
+              <div key={item.href}>
+                {index === 4 && (
+                  <div className="my-4 border-t border-white/[0.08]" />
+                )}
+
+                <Link
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${active
+                    ? "bg-white/[0.08] text-white ring-1 ring-inset ring-white/[0.06]"
+                    : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200"
+                    }`}
+                >
+                  <Icon size={18} strokeWidth={1.8} />
+
+                  <span>{item.label}</span>
+                </Link>
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* Storage */}
+
+        <div className="shrink-0 p-4">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-300">
+                Storage
+              </p>
+
+              <p className="text-xs text-slate-500">
+                {loadingStorage
+                  ? "..."
+                  : formatBytes(storage.totalBytes)}
+              </p>
+            </div>
+
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full rounded-full bg-slate-300 transition-all duration-500"
+                style={{
+                  width: `${storagePercentage}%`,
+                }}
+              />
+            </div>
+
+            <p className="mt-2.5 text-[11px] text-slate-500">
+              {loadingStorage
+                ? "Calculating storage..."
+                : `${formatBytes(
+                  storage.usedBytes
+                )} of ${formatBytes(
+                  storage.totalBytes
+                )} used`}
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      {/* ========================================================
+          DESKTOP SIDEBAR
           ======================================================== */}
 
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-slate-200 bg-[#0f172a] text-white lg:flex lg:flex-col">
@@ -318,7 +492,7 @@ export default function DashboardLayout({
                 className="text-white"
                 aria-hidden="true"
               >
-                {/* Premium cloud */}
+                {/* cloud */}
                 <path
                   d="M7.25 18.25H17.5C19.9853 18.25 22 16.2353 22 13.75C22 11.3839 20.1746 9.44439 17.8559 9.26176C17.0325 6.58257 14.5337 4.625 11.575 4.625C8.28294 4.625 5.57922 7.04758 5.1384 10.2222C3.32091 10.6146 2 12.2261 2 14.125C2 16.4042 3.8458 18.25 6.125 18.25"
                   stroke="currentColor"
@@ -370,8 +544,8 @@ export default function DashboardLayout({
                 <Link
                   href={item.href}
                   className={`mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${active
-                      ? "bg-white/[0.08] text-white ring-1 ring-inset ring-white/[0.06]"
-                      : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200"
+                    ? "bg-white/[0.08] text-white ring-1 ring-inset ring-white/[0.06]"
+                    : "text-slate-400 hover:bg-white/[0.05] hover:text-slate-200"
                     }`}
                 >
                   <Icon size={18} strokeWidth={1.8} />
@@ -432,15 +606,52 @@ export default function DashboardLayout({
         {/* Dynamic Header */}
 
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f5f7fb]/90 backdrop-blur-xl">
-          <div className="mx-auto flex h-20 max-w-[1500px] items-center justify-between px-5 sm:px-8">
-            {/* Mobile logo */}
+          <div className="mx-auto flex h-16 min-h-16 max-w-[1500px] items-center justify-between px-4 sm:h-20 sm:px-8">
+            {/* Mobile logo + hamburger */}
 
             <div className="flex items-center gap-3 lg:hidden">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#1e3a5f] to-[#334e68] text-white">
-                <Cloud size={19} strokeWidth={1.8} />
-              </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition hover:bg-white hover:text-slate-900"
+                aria-label="Open menu"
+              >
+                <Menu size={22} strokeWidth={1.8} />
+              </button>
 
-              <span className="font-bold">Cloudy</span>
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1E3A5F] shadow-[0_2px_8px_rgba(30,58,95,0.18)]">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="text-white"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M7.25 18.25H17.5C19.9853 18.25 22 16.2353 22 13.75C22 11.3839 20.1746 9.44439 17.8559 9.26176C17.0325 6.58257 14.5337 4.625 11.575 4.625C8.28294 4.625 5.57922 7.04758 5.1384 10.2222C3.32091 10.6146 2 12.2261 2 14.125C2 16.4042 3.8458 18.25 6.125 18.25"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+
+                    <path
+                      d="M12 18V9.5M8.75 12.75L12 9.5L15.25 12.75"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+
+                <span className="font-bold">
+                  Cloudy
+                </span>
+              </div>
             </div>
 
             {/* Dynamic title */}
@@ -457,7 +668,7 @@ export default function DashboardLayout({
 
             {/* Right side */}
 
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex items-center gap-2 sm:gap-3">
               {/* Upload */}
 
               <button
@@ -474,7 +685,7 @@ export default function DashboardLayout({
                 <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl p-1.5 transition hover:bg-white">
                   {/* Avatar */}
 
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#334e68] text-sm font-bold text-white shadow-sm">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a5f] to-[#334e68] text-xs font-bold text-white shadow-sm sm:h-10 sm:w-10 sm:text-sm">
                     {loadingUser ? (
                       <div className="h-full w-full animate-pulse rounded-full bg-slate-300" />
                     ) : (
@@ -509,7 +720,7 @@ export default function DashboardLayout({
 
                 {/* Dropdown */}
 
-                <div className="absolute right-0 top-14 z-50 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
+                <div className="absolute right-0 top-14 z-50 w-[calc(100vw-2rem)] max-w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
                   {/* Account info */}
 
                   <div className="rounded-xl bg-slate-50 px-3 py-3">
