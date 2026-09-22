@@ -67,10 +67,8 @@ export default function FavoritesPage() {
     const [sort, setSort] = useState<
         "newest" | "oldest" | "name" | "size"
     >("newest");
-
+    
     const [menuId, setMenuId] = useState<string | null>(null);
-    const [shareUrl, setShareUrl] =
-        useState<string | null>(null);
 
     function showToast(
         text: string,
@@ -123,6 +121,28 @@ export default function FavoritesPage() {
         initializePage();
     }, []);
 
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            const target = event.target as HTMLElement;
+
+            if (!target.closest("[data-file-menu]")) {
+                setMenuId(null);
+            }
+        }
+
+        document.addEventListener(
+            "mousedown",
+            handleClickOutside
+        );
+
+        return () => {
+            document.removeEventListener(
+                "mousedown",
+                handleClickOutside
+            );
+        };
+    }, []);
+
     async function toggleFavorite(item: UserFile) {
         try {
             const response = await fetch(
@@ -150,9 +170,10 @@ export default function FavoritesPage() {
                 current.map((file) =>
                     file.id === item.id
                         ? {
-                            ...file,
-                            isFavorite: data.file.isFavorite,
-                        }
+                              ...file,
+                              isFavorite:
+                                  data.file.isFavorite,
+                          }
                         : file
                 )
             );
@@ -220,67 +241,13 @@ export default function FavoritesPage() {
         }
     }
 
-    async function createShareLink(item: UserFile) {
-        try {
-            const response = await fetch(
-                `/api/files/${item.id}/share`,
-                {
-                    method: "POST",
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    data.error ||
-                    "Unable to create share link."
-                );
-            }
-
-            const url = `${window.location.origin}${data.url}`;
-
-            setShareUrl(url);
-            setMenuId(null);
-        } catch (error) {
-            showToast(
-                error instanceof Error
-                    ? error.message
-                    : "Unable to create share link.",
-                "error"
-            );
-        }
-    }
-
-    async function copyShareLink() {
-        if (!shareUrl) return;
-
-        try {
-            await navigator.clipboard.writeText(
-                shareUrl
-            );
-
-            showToast(
-                "Share link copied.",
-                "success"
-            );
-        } catch {
-            showToast(
-                "Unable to copy share link.",
-                "error"
-            );
-        }
-    }
-
     const visibleFiles = useMemo(() => {
         const result = files.filter((file) => {
             const matchesSearch = file.name
                 .toLowerCase()
                 .includes(search.toLowerCase());
 
-            const isFavorited = file.isFavorite;
-
-            return matchesSearch && isFavorited;
+            return matchesSearch && file.isFavorite;
         });
 
         return [...result].sort((a, b) => {
@@ -307,24 +274,27 @@ export default function FavoritesPage() {
     }, [files, search, sort]);
 
     return (
-        <main className="h-full overflow-hidden bg-[#f5f7fb] text-slate-900">
+        <main className="h-full overflow-x-hidden overflow-y-auto bg-[#f5f7fb] text-slate-900">
+            {/* Toast */}
             {toast && (
-                <div className="fixed right-5 top-5 z-100 w-[calc(100%-40px)] max-w-sm">
+                <div className="fixed right-3 top-3 z-[100] w-[calc(100%-24px)] max-w-sm sm:right-5 sm:top-5 sm:w-[calc(100%-40px)]">
                     <div
-                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl ${toast.type === "success"
-                            ? "border-emerald-200 bg-white text-emerald-700"
-                            : toast.type === "error"
-                                ? "border-red-200 bg-white text-red-700"
-                                : "border-slate-200 bg-white text-slate-700"
-                            }`}
+                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl ${
+                            toast.type === "success"
+                                ? "border-emerald-200 bg-white text-emerald-700"
+                                : toast.type === "error"
+                                    ? "border-red-200 bg-white text-red-700"
+                                    : "border-slate-200 bg-white text-slate-700"
+                        }`}
                     >
                         <div
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${toast.type === "success"
-                                ? "bg-emerald-100"
-                                : toast.type === "error"
-                                    ? "bg-red-100"
-                                    : "bg-slate-100"
-                                }`}
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                                toast.type === "success"
+                                    ? "bg-emerald-100"
+                                    : toast.type === "error"
+                                        ? "bg-red-100"
+                                        : "bg-slate-100"
+                            }`}
                         >
                             {toast.type === "success"
                                 ? "✓"
@@ -333,15 +303,14 @@ export default function FavoritesPage() {
                                     : "i"}
                         </div>
 
-                        <p className="flex-1 text-sm font-medium">
+                        <p className="min-w-0 flex-1 text-sm font-medium">
                             {toast.text}
                         </p>
 
                         <button
-                            onClick={() =>
-                                setToast(null)
-                            }
-                            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            type="button"
+                            onClick={() => setToast(null)}
+                            className="shrink-0 rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                         >
                             ×
                         </button>
@@ -349,16 +318,16 @@ export default function FavoritesPage() {
                 </div>
             )}
 
-            <div className="mx-auto max-w-375 px-5 py-8 sm:px-8">
-                {/* Files */}
-                <section className="mt-8">
-                    <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-                        <div>
+            <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <section className="mt-2 sm:mt-4 lg:mt-8">
+                    {/* Header */}
+                    <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                        <div className="min-w-0">
                             <p className="text-sm font-medium text-[#1e3a5f]">
                                 Workspace
                             </p>
 
-                            <h2 className="mt-1 text-2xl font-bold tracking-tight">
+                            <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
                                 Favorites
                             </h2>
 
@@ -370,8 +339,9 @@ export default function FavoritesPage() {
                             </p>
                         </div>
 
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <div className="relative">
+                        {/* Search + Sort */}
+                        <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                            <div className="relative w-full sm:w-56">
                                 <svg
                                     className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                                     width="17"
@@ -386,7 +356,6 @@ export default function FavoritesPage() {
                                         cy="11"
                                         r="7"
                                     />
-
                                     <path d="m20 20-4-4" />
                                 </svg>
 
@@ -398,7 +367,7 @@ export default function FavoritesPage() {
                                         )
                                     }
                                     placeholder="Search favorites..."
-                                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#6f8da8] focus:ring-4 focus:ring-[#1e3a5f]/10 sm:w-56"
+                                    className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#6f8da8] focus:ring-4 focus:ring-[#1e3a5f]/10"
                                 />
                             </div>
 
@@ -407,26 +376,23 @@ export default function FavoritesPage() {
                                 onChange={(event) =>
                                     setSort(
                                         event.target.value as
-                                        | "newest"
-                                        | "oldest"
-                                        | "name"
-                                        | "size"
+                                            | "newest"
+                                            | "oldest"
+                                            | "name"
+                                            | "size"
                                     )
                                 }
-                                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-[#6f8da8]"
+                                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none focus:border-[#6f8da8] sm:w-auto"
                             >
                                 <option value="newest">
                                     Newest
                                 </option>
-
                                 <option value="oldest">
                                     Oldest
                                 </option>
-
                                 <option value="name">
                                     Name
                                 </option>
-
                                 <option value="size">
                                     Largest
                                 </option>
@@ -434,6 +400,7 @@ export default function FavoritesPage() {
                         </div>
                     </div>
 
+                    {/* Loading */}
                     {loading ? (
                         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                             <div className="divide-y divide-slate-100">
@@ -441,13 +408,13 @@ export default function FavoritesPage() {
                                     (item) => (
                                         <div
                                             key={item}
-                                            className="px-5 py-4"
+                                            className="px-4 py-4 sm:px-5"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="h-11 w-11 animate-pulse rounded-xl bg-slate-200" />
+                                                <div className="h-11 w-11 shrink-0 animate-pulse rounded-xl bg-slate-200" />
 
-                                                <div className="flex-1 space-y-2">
-                                                    <div className="h-4 w-40 animate-pulse rounded bg-slate-200" />
+                                                <div className="min-w-0 flex-1 space-y-2">
+                                                    <div className="h-4 w-40 max-w-full animate-pulse rounded bg-slate-200" />
 
                                                     <div className="h-3 w-20 animate-pulse rounded bg-slate-100" />
                                                 </div>
@@ -457,9 +424,9 @@ export default function FavoritesPage() {
                                 )}
                             </div>
                         </div>
-                    ) : visibleFiles.length ===
-                        0 ? (
-                        <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center">
+                    ) : visibleFiles.length === 0 ? (
+                        /* Empty state */
+                        <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center sm:p-14">
                             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                                 <svg
                                     width="25"
@@ -477,13 +444,15 @@ export default function FavoritesPage() {
                                 No favorites yet
                             </h3>
 
-                            <p className="mt-1 text-sm text-slate-500">
-                                Add files to your favorites by starring them to see
-                                them here.
+                            <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+                                Add files to your favorites by
+                                starring them to see them here.
                             </p>
                         </div>
                     ) : (
-                        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        /* Files */
+                        <div className="relative mt-5 overflow-visible rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            {/* Desktop header */}
                             <div className="hidden border-b border-slate-100 bg-slate-50/80 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 md:grid md:grid-cols-[minmax(0,1fr)_120px_130px_50px] md:gap-4">
                                 <span>File</span>
                                 <span>Access</span>
@@ -492,45 +461,78 @@ export default function FavoritesPage() {
                             </div>
 
                             <div className="divide-y divide-slate-100">
-                                {visibleFiles.map(
-                                    (item) => (
+                                {visibleFiles.map((item, index) => {
+                                    const isLast =
+                                        index ===
+                                        visibleFiles.length - 1;
+
+                                    return (
                                         <div
                                             key={item.id}
-                                            className="group relative px-5 py-4 transition hover:bg-slate-50/70"
+                                            className="group relative overflow-visible px-4 py-4 transition hover:bg-slate-50/70 sm:px-5"
                                         >
-                                            <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_120px_130px_50px] md:items-center md:gap-4">
-                                                <div className="flex min-w-0 items-center gap-3">
-                                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef4f8] text-[10px] font-bold text-[#1e3a5f] ring-1 ring-[#d5e0eb]">
-                                                        {getFileIcon(
-                                                            item.mimeType
-                                                        )}
-                                                    </div>
-
-                                                    <div className="min-w-0">
-                                                        <p className="truncate text-sm font-semibold text-slate-800">
-                                                            {item.name}
-                                                        </p>
-
-                                                        <p className="mt-1 text-xs text-slate-400">
-                                                            {formatSize(
-                                                                item.size
+                                            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_40px] items-center gap-3 md:grid-cols-[minmax(0,1fr)_120px_130px_50px] md:gap-4">
+                                                {/* File */}
+                                                <div className="min-w-0">
+                                                    <div className="flex min-w-0 items-center gap-3">
+                                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef4f8] text-[10px] font-bold text-[#1e3a5f] ring-1 ring-[#d5e0eb]">
+                                                            {getFileIcon(
+                                                                item.mimeType
                                                             )}
-                                                        </p>
+                                                        </div>
+
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate text-sm font-semibold text-slate-800">
+                                                                {item.name}
+                                                            </p>
+
+                                                            <div className="mt-1 flex min-w-0 items-center gap-2">
+                                                                <p className="shrink-0 text-xs text-slate-400">
+                                                                    {formatSize(
+                                                                        item.size
+                                                                    )}
+                                                                </p>
+
+                                                                {/* Mobile access */}
+                                                                <span
+                                                                    className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold md:hidden ${
+                                                                        item.isPublic
+                                                                            ? "bg-emerald-50 text-emerald-700"
+                                                                            : "bg-slate-100 text-slate-600"
+                                                                    }`}
+                                                                >
+                                                                    <span
+                                                                        className={`h-1.5 w-1.5 rounded-full ${
+                                                                            item.isPublic
+                                                                                ? "bg-emerald-500"
+                                                                                : "bg-slate-400"
+                                                                        }`}
+                                                                    />
+
+                                                                    {item.isPublic
+                                                                        ? "Public"
+                                                                        : "Private"}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div>
+                                                {/* Desktop access */}
+                                                <div className="hidden md:block">
                                                     <span
-                                                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${item.isPublic
-                                                            ? "bg-emerald-50 text-emerald-700"
-                                                            : "bg-slate-100 text-slate-600"
-                                                            }`}
+                                                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                                            item.isPublic
+                                                                ? "bg-emerald-50 text-emerald-700"
+                                                                : "bg-slate-100 text-slate-600"
+                                                        }`}
                                                     >
                                                         <span
-                                                            className={`h-1.5 w-1.5 rounded-full ${item.isPublic
-                                                                ? "bg-emerald-500"
-                                                                : "bg-slate-400"
-                                                                }`}
+                                                            className={`h-1.5 w-1.5 rounded-full ${
+                                                                item.isPublic
+                                                                    ? "bg-emerald-500"
+                                                                    : "bg-slate-400"
+                                                            }`}
                                                         />
 
                                                         {item.isPublic
@@ -539,14 +541,21 @@ export default function FavoritesPage() {
                                                     </span>
                                                 </div>
 
-                                                <p className="text-xs text-slate-500">
+                                                {/* Desktop date */}
+                                                <p className="hidden text-xs text-slate-500 md:block">
                                                     {formatDate(
                                                         item.createdAt
                                                     )}
                                                 </p>
 
-                                                <div className="relative flex justify-start md:justify-end">
+                                                {/* Menu */}
+                                                <div
+                                                    data-file-menu
+                                                    className="relative flex justify-end"
+                                                >
                                                     <button
+                                                        type="button"
+                                                        aria-label={`Actions for ${item.name}`}
                                                         onClick={() =>
                                                             setMenuId(
                                                                 menuId ===
@@ -555,7 +564,7 @@ export default function FavoritesPage() {
                                                                     : item.id
                                                             )
                                                         }
-                                                        className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
                                                     >
                                                         <svg
                                                             width="18"
@@ -570,13 +579,11 @@ export default function FavoritesPage() {
                                                                 cy="12"
                                                                 r="1"
                                                             />
-
                                                             <circle
                                                                 cx="12"
                                                                 cy="12"
                                                                 r="1"
                                                             />
-
                                                             <circle
                                                                 cx="19"
                                                                 cy="12"
@@ -587,117 +594,54 @@ export default function FavoritesPage() {
 
                                                     {menuId ===
                                                         item.id && (
-                                                            <div className="absolute right-0 top-11 z-20 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                                                                <button
-                                                                    onClick={() =>
-                                                                        toggleFavorite(
-                                                                            item
-                                                                        )
-                                                                    }
-                                                                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-                                                                >
-                                                                    {item.isFavorite
-                                                                        ? "Remove from favorites"
-                                                                        : "Add to favorites"}
-                                                                </button>
+                                                        <div
+                                                            className={`absolute right-0 z-[80] w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl ${
+                                                                isLast
+                                                                    ? "bottom-11"
+                                                                    : "top-11"
+                                                            }`}
+                                                        >
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    toggleFavorite(
+                                                                        item
+                                                                    )
+                                                                }
+                                                                className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                            >
+                                                                {item.isFavorite
+                                                                    ? "Remove from favorites"
+                                                                    : "Add to favorites"}
+                                                            </button>
 
-                                                                {item.isPublic && (
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            createShareLink(
-                                                                                item
-                                                                            )
-                                                                        }
-                                                                        className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-                                                                    >
-                                                                        Create share
-                                                                        link
-                                                                    </button>
-                                                                )}
-
-                                                                <button
-                                                                    onClick={() =>
-                                                                        deleteFile(
-                                                                            item
-                                                                        )
-                                                                    }
-                                                                    className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
-                                                                >
-                                                                    Delete file
-                                                                </button>
-                                                            </div>
-                                                        )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    deleteFile(
+                                                                        item
+                                                                    )
+                                                                }
+                                                                className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm text-red-600 transition hover:bg-red-50"
+                                                            >
+                                                                Delete file
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
-                                    )
-                                )}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
                 </section>
 
-                <footer className="py-10 text-center text-xs text-slate-400">
+                <footer className="py-8 text-center text-xs text-slate-400 sm:py-10">
                     Cloudy · Store. Share. Secure.
                 </footer>
             </div>
-
-            {/* Share modal */}
-            {shareUrl && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-5 backdrop-blur-sm">
-                    <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                                    ✓
-                                </div>
-
-                                <h2 className="mt-5 text-xl font-bold">
-                                    Share link created
-                                </h2>
-
-                                <p className="mt-1 text-sm text-slate-500">
-                                    Anyone with this link can
-                                    access the public file.
-                                </p>
-                            </div>
-
-                            <button
-                                onClick={() =>
-                                    setShareUrl(null)
-                                }
-                                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
-                            >
-                                ×
-                            </button>
-                        </div>
-
-                        <div className="mt-6 flex gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
-                            <input
-                                readOnly
-                                value={shareUrl}
-                                className="min-w-0 flex-1 bg-transparent px-2 text-xs text-slate-600 outline-none"
-                            />
-
-                            <button
-                                onClick={copyShareLink}
-                                className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
-                            >
-                                Copy
-                            </button>
-                        </div>
-
-                        <button
-                            onClick={() =>
-                                setShareUrl(null)
-                            }
-                            className="mt-5 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                            Done
-                        </button>
-                    </div>
-                </div>
-            )}
         </main>
     );
 }

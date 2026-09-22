@@ -192,6 +192,9 @@ export default function DashboardPage() {
     const [menuId, setMenuId] =
         useState<string | null>(null);
 
+    const [moveMenuId, setMoveMenuId] =
+        useState<string | null>(null);
+
     const [menuPlacement, setMenuPlacement] =
         useState<"top" | "bottom">("bottom");
 
@@ -1113,6 +1116,7 @@ export default function DashboardPage() {
             );
 
             setMenuId(null);
+            setMoveMenuId(null);
 
             const folderName = folderId
                 ? folders.find(
@@ -1755,22 +1759,22 @@ export default function DashboardPage() {
                 <div className="fixed right-4 top-4 z-[100] w-[calc(100%-32px)] max-w-md sm:right-6 sm:top-6 sm:w-full">
                     <div
                         className={`flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl ${toast.type ===
-                                "success"
-                                ? "border-emerald-200 bg-white text-emerald-700"
-                                : toast.type ===
-                                    "error"
-                                    ? "border-red-200 bg-white text-red-700"
-                                    : "border-slate-200 bg-white text-slate-700"
+                            "success"
+                            ? "border-emerald-200 bg-white text-emerald-700"
+                            : toast.type ===
+                                "error"
+                                ? "border-red-200 bg-white text-red-700"
+                                : "border-slate-200 bg-white text-slate-700"
                             }`}
                     >
                         <div
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${toast.type ===
-                                    "success"
-                                    ? "bg-emerald-100"
-                                    : toast.type ===
-                                        "error"
-                                        ? "bg-red-100"
-                                        : "bg-slate-100"
+                                "success"
+                                ? "bg-emerald-100"
+                                : toast.type ===
+                                    "error"
+                                    ? "bg-red-100"
+                                    : "bg-slate-100"
                                 }`}
                         >
                             {toast.type ===
@@ -1908,8 +1912,8 @@ export default function DashboardPage() {
                             }
                         }}
                         className={`group relative cursor-pointer overflow-hidden rounded-[24px] border border-dashed p-7 text-center transition-all duration-200 sm:p-9 ${draggingUpload
-                                ? "border-[#1e3a5f] bg-[#f4f7fa] shadow-md shadow-slate-200"
-                                : "border-slate-300 bg-white hover:border-[#1e3a5f] hover:bg-slate-50"
+                            ? "border-[#1e3a5f] bg-[#f4f7fa] shadow-md shadow-slate-200"
+                            : "border-slate-300 bg-white hover:border-[#1e3a5f] hover:bg-slate-50"
                             }`}
                     >
                         <input
@@ -1938,8 +1942,8 @@ export default function DashboardPage() {
 
                         <div
                             className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-200 ${draggingUpload
-                                    ? "bg-[#1e3a5f] text-white shadow-md shadow-slate-300"
-                                    : "bg-[#eef4f8] text-[#1e3a5f] group-hover:bg-[#e2ebf2]"
+                                ? "bg-[#1e3a5f] text-white shadow-md shadow-slate-300"
+                                : "bg-[#eef4f8] text-[#1e3a5f] group-hover:bg-[#e2ebf2]"
                                 }`}
                         >
                             <Upload
@@ -2107,12 +2111,12 @@ export default function DashboardPage() {
                                                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
                                                     <div
                                                         className={`h-full rounded-full transition-[width] duration-200 ${item.status ===
-                                                                "error"
-                                                                ? "bg-red-500"
-                                                                : item.status ===
-                                                                    "cancelled"
-                                                                    ? "bg-slate-400"
-                                                                    : "bg-[#1e3a5f]"
+                                                            "error"
+                                                            ? "bg-red-500"
+                                                            : item.status ===
+                                                                "cancelled"
+                                                                ? "bg-slate-400"
+                                                                : "bg-[#1e3a5f]"
                                                             }`}
                                                         style={{
                                                             width: `${item.progress}%`,
@@ -2311,8 +2315,8 @@ export default function DashboardPage() {
                                             className={`relative cursor-pointer overflow-hidden rounded-2xl bg-gradient-to-br ${getFolderColor(
                                                 folder.id
                                             )} p-4 text-white shadow-md transition-all duration-200 ${isDropTarget
-                                                    ? "scale-[1.03] shadow-2xl ring-4 ring-blue-300/60"
-                                                    : "hover:-translate-y-0.5 hover:shadow-xl"
+                                                ? "scale-[1.03] shadow-2xl ring-4 ring-blue-300/60"
+                                                : "hover:-translate-y-0.5 hover:shadow-xl"
                                                 } ${isActive
                                                     ? "ring-2 ring-white ring-offset-2 ring-offset-[#f5f7fb]"
                                                     : ""
@@ -2673,14 +2677,14 @@ export default function DashboardPage() {
 
                                                 <span
                                                     className={`hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold sm:inline-flex ${item.isPublic
-                                                            ? "bg-emerald-50 text-emerald-700"
-                                                            : "bg-slate-100 text-slate-600"
+                                                        ? "bg-emerald-50 text-emerald-700"
+                                                        : "bg-slate-100 text-slate-600"
                                                         }`}
                                                 >
                                                     <span
                                                         className={`h-1.5 w-1.5 rounded-full ${item.isPublic
-                                                                ? "bg-emerald-500"
-                                                                : "bg-slate-400"
+                                                            ? "bg-emerald-500"
+                                                            : "bg-slate-400"
                                                             }`}
                                                     />
 
@@ -2743,9 +2747,9 @@ export default function DashboardPage() {
                                                         item.id && (
                                                             <div
                                                                 className={`absolute right-0 z-[200] w-60 overflow-visible rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ${menuPlacement ===
-                                                                        "top"
-                                                                        ? "bottom-11"
-                                                                        : "top-11"
+                                                                    "top"
+                                                                    ? "bottom-11"
+                                                                    : "top-11"
                                                                     }`}
                                                             >
                                                                 <button
@@ -2869,12 +2873,19 @@ export default function DashboardPage() {
 
                                                                 {folders.length >
                                                                     0 && (
-                                                                        <div className="group/move relative">
+                                                                        <div className="relative">
                                                                             <button
                                                                                 type="button"
                                                                                 disabled={
                                                                                     movingFileId ===
                                                                                     item.id
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    setMoveMenuId(
+                                                                                        moveMenuId === item.id
+                                                                                            ? null
+                                                                                            : item.id
+                                                                                    )
                                                                                 }
                                                                                 className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                                                                             >
@@ -2895,7 +2906,12 @@ export default function DashboardPage() {
                                                                                 </span>
                                                                             </button>
 
-                                                                            <div className="invisible absolute right-full top-0 z-[220] mr-1 w-52 translate-x-1 rounded-2xl border border-slate-200 bg-white p-1.5 opacity-0 shadow-2xl transition-all duration-150 group-hover/move:visible group-hover/move:translate-x-0 group-hover/move:opacity-100">
+                                                                            <div
+                                                                                className={`absolute z-[220] w-52 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ${moveMenuId === item.id
+                                                                                        ? "block"
+                                                                                        : "hidden"
+                                                                                    } left-0 top-full mt-1 md:left-auto md:right-full md:top-0 md:mr-1 md:mt-0`}
+                                                                            >
                                                                                 <div className="px-3 py-2">
                                                                                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                                                                                         Select
@@ -3061,14 +3077,14 @@ export default function DashboardPage() {
                                             <div className="mt-3 sm:hidden">
                                                 <span
                                                     className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${item.isPublic
-                                                            ? "bg-emerald-50 text-emerald-700"
-                                                            : "bg-slate-100 text-slate-600"
+                                                        ? "bg-emerald-50 text-emerald-700"
+                                                        : "bg-slate-100 text-slate-600"
                                                         }`}
                                                 >
                                                     <span
                                                         className={`h-1.5 w-1.5 rounded-full ${item.isPublic
-                                                                ? "bg-emerald-500"
-                                                                : "bg-slate-400"
+                                                            ? "bg-emerald-500"
+                                                            : "bg-slate-400"
                                                             }`}
                                                     />
 
