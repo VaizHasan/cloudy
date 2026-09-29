@@ -100,6 +100,14 @@ export async function PATCH(
       }
     }
 
+    if (body.isPublic === false) {
+  await db.shareLink.deleteMany({
+    where: {
+      fileId: id,
+    },
+  });
+}
+
     const updatedFile = await db.file.update({
       where: {
         id,

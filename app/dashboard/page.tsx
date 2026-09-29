@@ -28,6 +28,7 @@ type UserFile = {
     size: string;
     mimeType: string;
     isPublic: boolean;
+    shareToken?: string | null;
     isFavorite: boolean;
     createdAt: string;
     folderId?: string | null;
@@ -1458,6 +1459,16 @@ export default function DashboardPage() {
             const shareLink =
                 `${window.location.origin}${data.url}`;
 
+            const token = data.token ?? data.url.split("/").pop();
+
+            setFiles((current) =>
+                current.map((file) =>
+                    file.id === item.id
+                        ? { ...file, shareToken: token }
+                        : file
+                )
+            );
+
             await navigator.clipboard.writeText(
                 shareLink
             );
@@ -2823,25 +2834,41 @@ export default function DashboardPage() {
                                                                         : "Make public"}
                                                                 </button>
 
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        void createShareLink(
-                                                                            item
-                                                                        )
-                                                                    }
-                                                                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-                                                                >
-                                                                    <LinkIcon
-                                                                        size={
-                                                                            16
-                                                                        }
-                                                                    />
+                                                                {item.isPublic === true && item.shareToken ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const url = `${window.location.origin}/share/${item.shareToken}`;
+                                                                            navigator.clipboard.writeText(url);
+                                                                            setMenuId(null);
+                                                                            showToast("Share link copied.", "success");
+                                                                        }}
+                                                                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                                    >
+                                                                        <LinkIcon size={16} />
+                                                                        Copy share link
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (item.isPublic !== true) {
+                                                                                setMenuId(null);
+                                                                                showToast(
+                                                                                    "Make the file public before creating a share link.",
+                                                                                    "error"
+                                                                                );
+                                                                                return;
+                                                                            }
 
-                                                                    Copy
-                                                                    share
-                                                                    link
-                                                                </button>
+                                                                            void createShareLink(item);
+                                                                        }}
+                                                                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                                    >
+                                                                        <LinkIcon size={16} />
+                                                                        Create share link
+                                                                    </button>
+                                                                )}
 
                                                                 <div className="my-1 h-px bg-slate-100" />
 
@@ -2908,8 +2935,8 @@ export default function DashboardPage() {
 
                                                                             <div
                                                                                 className={`absolute z-[220] w-52 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-2xl ${moveMenuId === item.id
-                                                                                        ? "block"
-                                                                                        : "hidden"
+                                                                                    ? "block"
+                                                                                    : "hidden"
                                                                                     } left-0 top-full mt-1 md:left-auto md:right-full md:top-0 md:mr-1 md:mt-0`}
                                                                             >
                                                                                 <div className="px-3 py-2">

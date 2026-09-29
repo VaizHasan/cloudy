@@ -48,15 +48,32 @@ export async function GET() {
         folderId: true,
         createdAt: true,
         updatedAt: true,
+        shareLinks: {
+          select: {
+            token: true,
+          },
+          take: 1,
+        },
       },
     });
 
     return Response.json({
       files: files.map((file) => ({
-        ...file,
+        id: file.id,
+        name: file.name,
         size: file.size.toString(),
+        mimeType: file.mimeType,
+        isPublic: file.isPublic,
+        isFavorite: file.isFavorite,
+        isDeleted: file.isDeleted,
+        folderId: file.folderId,
         createdAt: file.createdAt.toISOString(),
         updatedAt: file.updatedAt.toISOString(),
+
+        // Only expose a share token when the file is public.
+        shareToken: file.isPublic
+          ? file.shareLinks[0]?.token ?? null
+          : null,
       })),
     });
   } catch (error) {

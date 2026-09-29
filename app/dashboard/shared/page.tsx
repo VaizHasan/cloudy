@@ -9,6 +9,8 @@ type UserFile = {
     mimeType: string;
     isPublic: boolean;
     isFavorite: boolean;
+    isDeleted: boolean;
+    shareToken: string | null;
     createdAt: string;
 };
 
@@ -243,6 +245,13 @@ export default function SharedPage() {
             const url = `${window.location.origin}${data.url}`;
 
             setShareUrl(url);
+            setFiles((current) =>
+                current.map((file) =>
+                    file.id === item.id
+                        ? { ...file, shareToken: data.token }
+                        : file
+                )
+            );
             setMenuId(null);
         } catch (error) {
             showToast(
@@ -280,7 +289,9 @@ export default function SharedPage() {
                 .toLowerCase()
                 .includes(search.toLowerCase());
 
-            const isShared = file.isPublic;
+            const isShared =
+                file.isPublic === true &&
+                file.shareToken !== null;
 
             return matchesSearch && isShared;
         });
@@ -314,18 +325,18 @@ export default function SharedPage() {
                 <div className="fixed right-4 top-4 z-[100] w-[calc(100%-32px)] max-w-sm sm:right-5 sm:top-5 sm:w-[calc(100%-40px)]">
                     <div
                         className={`flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl ${toast.type === "success"
-                                ? "border-emerald-200 bg-white text-emerald-700"
-                                : toast.type === "error"
-                                    ? "border-red-200 bg-white text-red-700"
-                                    : "border-slate-200 bg-white text-slate-700"
+                            ? "border-emerald-200 bg-white text-emerald-700"
+                            : toast.type === "error"
+                                ? "border-red-200 bg-white text-red-700"
+                                : "border-slate-200 bg-white text-slate-700"
                             }`}
                     >
                         <div
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${toast.type === "success"
-                                    ? "bg-emerald-100"
-                                    : toast.type === "error"
-                                        ? "bg-red-100"
-                                        : "bg-slate-100"
+                                ? "bg-emerald-100"
+                                : toast.type === "error"
+                                    ? "bg-red-100"
+                                    : "bg-slate-100"
                                 }`}
                         >
                             {toast.type === "success"
@@ -527,14 +538,14 @@ export default function SharedPage() {
                                                             {/* Mobile access */}
                                                             <span
                                                                 className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold md:hidden ${item.isPublic
-                                                                        ? "bg-emerald-50 text-emerald-700"
-                                                                        : "bg-slate-100 text-slate-600"
+                                                                    ? "bg-emerald-50 text-emerald-700"
+                                                                    : "bg-slate-100 text-slate-600"
                                                                     }`}
                                                             >
                                                                 <span
                                                                     className={`h-1.5 w-1.5 rounded-full ${item.isPublic
-                                                                            ? "bg-emerald-500"
-                                                                            : "bg-slate-400"
+                                                                        ? "bg-emerald-500"
+                                                                        : "bg-slate-400"
                                                                         }`}
                                                                 />
 
@@ -558,14 +569,14 @@ export default function SharedPage() {
                                                 <div className="hidden md:block">
                                                     <span
                                                         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${item.isPublic
-                                                                ? "bg-emerald-50 text-emerald-700"
-                                                                : "bg-slate-100 text-slate-600"
+                                                            ? "bg-emerald-50 text-emerald-700"
+                                                            : "bg-slate-100 text-slate-600"
                                                             }`}
                                                     >
                                                         <span
                                                             className={`h-1.5 w-1.5 rounded-full ${item.isPublic
-                                                                    ? "bg-emerald-500"
-                                                                    : "bg-slate-400"
+                                                                ? "bg-emerald-500"
+                                                                : "bg-slate-400"
                                                                 }`}
                                                         />
 
@@ -626,10 +637,10 @@ export default function SharedPage() {
                                                         item.id && (
                                                             <div
                                                                 className={`absolute right-0 z-[80] w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ${index ===
-                                                                        visibleFiles.length -
-                                                                        1
-                                                                        ? "bottom-11"
-                                                                        : "top-11"
+                                                                    visibleFiles.length -
+                                                                    1
+                                                                    ? "bottom-11"
+                                                                    : "top-11"
                                                                     }`}
                                                             >
                                                                 <button
@@ -646,18 +657,37 @@ export default function SharedPage() {
                                                                         : "Make public"}
                                                                 </button>
 
-                                                                {item.isPublic && (
+                                                                {item.isPublic === true && item.shareToken ? (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() =>
-                                                                            createShareLink(
-                                                                                item
-                                                                            )
-                                                                        }
+                                                                        onClick={() => {
+                                                                            const url = `${window.location.origin}/share/${item.shareToken}`;
+                                                                            navigator.clipboard.writeText(url);
+                                                                            setMenuId(null);
+                                                                            showToast("Share link copied.", "success");
+                                                                        }}
                                                                         className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
                                                                     >
-                                                                        Create share
-                                                                        link
+                                                                        Copy share link
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (item.isPublic !== true) {
+                                                                                setMenuId(null);
+                                                                                showToast(
+                                                                                    "Make the file public before creating a share link.",
+                                                                                    "error"
+                                                                                );
+                                                                                return;
+                                                                            }
+
+                                                                            createShareLink(item);
+                                                                        }}
+                                                                        className="flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                                                                    >
+                                                                        Create share link
                                                                     </button>
                                                                 )}
 
