@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -11,7 +11,6 @@ import {
   Trash2,
   LogOut,
   ChevronDown,
-  Upload,
   Menu,
   X,
 } from "lucide-react";
@@ -91,6 +90,8 @@ export default function DashboardLayout({
 
   // Mobile sidebar
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const profileRef = useRef<HTMLDetailsElement | null>(null);
 
   // ------------------------------------------------------------
   // Load current user
@@ -203,6 +204,29 @@ export default function DashboardLayout({
       document.body.style.overflow = "";
     };
   }, [mobileMenuOpen]);
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    function handleOutsideClick(event: MouseEvent) {
+      const target = event.target as Node;
+
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(target)
+      ) {
+        profileRef.current.removeAttribute("open");
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+    };
+  }, []);
 
   // ------------------------------------------------------------
   // Page information
@@ -605,7 +629,7 @@ export default function DashboardLayout({
       <div className="min-h-screen min-w-0 lg:ml-64">
         {/* Dynamic Header */}
 
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f5f7fb]/90 backdrop-blur-xl">
+        <header className="sticky top-0 z-30 border-b border-slate-300 bg-[#f5f7fb]/95 backdrop-blur-xl">
           <div className="mx-auto flex h-16 min-h-16 max-w-[1500px] items-center justify-between px-4 sm:h-20 sm:px-8">
             {/* Mobile logo + hamburger */}
 
@@ -669,19 +693,10 @@ export default function DashboardLayout({
             {/* Right side */}
 
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
-              {/* Upload */}
-
-              <button
-                type="button"
-                className="hidden items-center gap-2 rounded-xl bg-gradient-to-br from-[#1e3a5f] to-[#334e68] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1e3a5f]/20 transition hover:from-[#16324f] hover:to-[#2b435a] sm:flex"
-              >
-                <Upload size={16} strokeWidth={2} />
-                Upload
-              </button>
 
               {/* User menu */}
 
-              <details className="relative">
+              <details ref={profileRef} className="relative">
                 <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl p-1.5 transition hover:bg-white">
                   {/* Avatar */}
 

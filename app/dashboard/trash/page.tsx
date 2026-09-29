@@ -12,19 +12,28 @@ type UserFile = {
     createdAt: string;
 };
 
+type SortOption = "newest" | "oldest" | "name" | "size";
+
+type Toast = {
+    type: "success" | "error" | "info";
+    text: string;
+};
+
 type MenuPosition = {
     top: number;
     right: number;
 };
 
+const MENU_WIDTH = 224;
+const GAP = 8;
+const VIEWPORT_PADDING = 12;
+const INITIAL_MENU_HEIGHT = 170;
+
 function formatSize(bytes: string | number) {
     const size = Number(bytes);
 
     if (!Number.isFinite(size)) return "0 B";
-
-    if (size < 1024) {
-        return `${size} B`;
-    }
+    if (size < 1024) return `${size} B`;
 
     if (size < 1024 * 1024) {
         return `${(size / 1024).toFixed(1)} KB`;
@@ -61,47 +70,187 @@ function getFileIcon(mimeType: string) {
     return "FILE";
 }
 
+function FileIcon({ mimeType }: { mimeType: string }) {
+    return (
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef4f8] text-[10px] font-bold text-[#1e3a5f] ring-1 ring-[#d5e0eb]">
+            {getFileIcon(mimeType)}
+        </div>
+    );
+}
+
+function AccessBadge({ isPublic }: { isPublic: boolean }) {
+    return (
+        <span
+            className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${isPublic
+                ? "bg-emerald-50 text-emerald-700"
+                : "bg-slate-100 text-slate-600"
+                }`}
+        >
+            <span
+                className={`h-1.5 w-1.5 rounded-full ${isPublic
+                    ? "bg-emerald-500"
+                    : "bg-slate-400"
+                    }`}
+            />
+            {isPublic ? "Public" : "Private"}
+        </span>
+    );
+}
+
+function MoreIcon() {
+    return (
+        <svg
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+        >
+            <circle cx="5" cy="12" r="1" />
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="19" cy="12" r="1" />
+        </svg>
+    );
+}
+
+function RestoreIcon() {
+    return (
+        <svg
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            viewBox="0 0 24 24"
+        >
+            <path d="M3 12a9 9 0 1 0 3-6.7" />
+            <path d="M3 4v5h5" />
+        </svg>
+    );
+}
+
+function DeleteIcon() {
+    return (
+        <svg
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            viewBox="0 0 24 24"
+        >
+            <path d="M4 7h16" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M6 7l1 13h10l1-13" />
+            <path d="M9 7V4h6v3" />
+        </svg>
+    );
+}
+
+function FileActionsMenu({
+    file,
+    position,
+    menuRef,
+    onRestore,
+    onDelete,
+    mobile,
+}: {
+    file: UserFile;
+    position: MenuPosition;
+    menuRef: React.RefObject<HTMLDivElement | null>;
+    onRestore: (file: UserFile) => void;
+    onDelete: (file: UserFile) => void;
+    mobile?: boolean;
+}) {
+    return (
+        <div
+            ref={menuRef}
+            className={`fixed z-[9999] overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.16)] ring-1 ring-black/5 ${mobile
+                ? "w-[calc(100vw-24px)] max-w-56 md:hidden"
+                : "w-56"
+                }`}
+            style={position}
+        >
+            <button
+                type="button"
+                onClick={() => onRestore(file)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                    <RestoreIcon />
+                </span>
+
+                <span>Restore file</span>
+            </button>
+
+            <button
+                type="button"
+                onClick={() => onDelete(file)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
+            >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500">
+                    <DeleteIcon />
+                </span>
+
+                <span>Delete permanently</span>
+            </button>
+        </div>
+    );
+}
+
 export default function TrashPage() {
     const [allFiles, setAllFiles] = useState<UserFile[]>([]);
     const [loading, setLoading] = useState(true);
-
-    const [toast, setToast] = useState<{
-        type: "success" | "error" | "info";
-        text: string;
-    } | null>(null);
-
     const [search, setSearch] = useState("");
+    const [sort, setSort] =
+        useState<SortOption>("newest");
 
-    const [sort, setSort] = useState<
-        "newest" | "oldest" | "name" | "size"
-    >("newest");
+    const [toast, setToast] =
+        useState<Toast | null>(null);
 
-    /*
-     * Instead of positioning the dropdown inside the row,
-     * we render it fixed relative to the viewport.
-     *
-     * This prevents:
-     * - overflow clipping
-     * - dropdown going inside the card
-     * - dropdown being hidden behind the card
-     * - problems when there is only one row
-     */
-    const [menuId, setMenuId] = useState<string | null>(null);
+    const [desktopMenuId, setDesktopMenuId] =
+        useState<string | null>(null);
 
-    const [menuPosition, setMenuPosition] =
+    const [desktopMenuPosition, setDesktopMenuPosition] =
         useState<MenuPosition | null>(null);
 
-    const menuRef = useRef<HTMLDivElement | null>(null);
+    const [mobileMenuId, setMobileMenuId] =
+        useState<string | null>(null);
+
+    const [mobileMenuPosition, setMobileMenuPosition] =
+        useState<MenuPosition | null>(null);
+
+    const desktopMenuRef =
+        useRef<HTMLDivElement | null>(null);
+
+    const mobileMenuRef =
+        useRef<HTMLDivElement | null>(null);
 
     function showToast(
         text: string,
-        type: "success" | "error" | "info" = "success"
+        type: Toast["type"] = "success"
     ) {
         setToast({ text, type });
 
         window.setTimeout(() => {
             setToast(null);
         }, 3000);
+    }
+
+    function closeDesktopMenu() {
+        setDesktopMenuId(null);
+        setDesktopMenuPosition(null);
+    }
+
+    function closeMobileMenu() {
+        setMobileMenuId(null);
+        setMobileMenuPosition(null);
+    }
+
+    function closeMenus() {
+        closeDesktopMenu();
+        closeMobileMenu();
     }
 
     async function loadFiles() {
@@ -131,7 +280,7 @@ export default function TrashPage() {
     }
 
     useEffect(() => {
-        async function initializePage() {
+        async function initialize() {
             setLoading(true);
 
             try {
@@ -141,224 +290,454 @@ export default function TrashPage() {
             }
         }
 
-        initializePage();
+        initialize();
     }, []);
 
-    /*
-     * Close dropdown when clicking outside.
-     */
+    /* Desktop outside click */
     useEffect(() => {
-        function handlePointerDown(event: MouseEvent) {
+        if (desktopMenuId === null) return;
+
+        function handleClick(event: MouseEvent) {
             const target = event.target as Node;
 
+            const menuButton = (
+                target as HTMLElement
+            )?.closest?.(
+                `[data-desktop-menu-button="${desktopMenuId}"]`
+            );
+
+            if (menuButton) return;
+
             if (
-                menuRef.current &&
-                !menuRef.current.contains(target)
+                desktopMenuRef.current &&
+                !desktopMenuRef.current.contains(target)
             ) {
-                setMenuId(null);
-                setMenuPosition(null);
+                closeDesktopMenu();
             }
         }
 
-        if (menuId !== null) {
-            document.addEventListener(
-                "mousedown",
-                handlePointerDown
-            );
-        }
+        document.addEventListener(
+            "mousedown",
+            handleClick
+        );
 
-        return () => {
+        return () =>
             document.removeEventListener(
                 "mousedown",
-                handlePointerDown
+                handleClick
             );
-        };
-    }, [menuId]);
+    }, [desktopMenuId]);
 
-    /*
-     * Close menu with Escape.
-     */
+    /* Mobile outside click */
     useEffect(() => {
-        function handleKeyDown(event: KeyboardEvent) {
+        if (mobileMenuId === null) return;
+
+        function handleClick(event: MouseEvent) {
+            const target = event.target as Node;
+
+            const menuButton = (
+                target as HTMLElement
+            )?.closest?.(
+                `[data-mobile-menu-button="${mobileMenuId}"]`
+            );
+
+            if (menuButton) return;
+
+            if (
+                mobileMenuRef.current &&
+                !mobileMenuRef.current.contains(target)
+            ) {
+                closeMobileMenu();
+            }
+        }
+
+        document.addEventListener(
+            "mousedown",
+            handleClick
+        );
+
+        return () =>
+            document.removeEventListener(
+                "mousedown",
+                handleClick
+            );
+    }, [mobileMenuId]);
+
+    /* Escape */
+    useEffect(() => {
+        function handleEscape(event: KeyboardEvent) {
             if (event.key === "Escape") {
-                setMenuId(null);
-                setMenuPosition(null);
+                closeMenus();
             }
         }
 
         document.addEventListener(
             "keydown",
-            handleKeyDown
+            handleEscape
         );
 
-        return () => {
+        return () =>
             document.removeEventListener(
                 "keydown",
-                handleKeyDown
+                handleEscape
             );
-        };
     }, []);
 
     /*
-     * Keep dropdown correctly positioned while scrolling/resizing.
+     * Desktop positioning
+     * Measures the actual rendered popup height so
+     * bottom rows can safely open upward.
      */
     useEffect(() => {
-        if (menuId === null) return;
+        if (desktopMenuId === null) return;
 
-        function handleViewportChange() {
+        function updatePosition() {
             const button = document.querySelector(
-                `[data-menu-button="${menuId}"]`
+                `[data-desktop-menu-button="${desktopMenuId}"]`
             ) as HTMLElement | null;
 
             if (!button) return;
 
-            const rect = button.getBoundingClientRect();
+            const rect =
+                button.getBoundingClientRect();
 
-            const menuWidth = 224;
-            const menuHeight = 100;
-            const spacing = 8;
+            const menuHeight =
+                desktopMenuRef.current?.getBoundingClientRect()
+                    .height ?? INITIAL_MENU_HEIGHT;
 
-            let top = rect.bottom + spacing;
+            const menuWidth =
+                desktopMenuRef.current?.getBoundingClientRect()
+                    .width ?? MENU_WIDTH;
 
-            /*
-             * If there isn't enough room below the button,
-             * show the dropdown above it.
-             */
+            let top = rect.bottom + GAP;
+
             if (
                 top + menuHeight >
-                window.innerHeight - 12
+                window.innerHeight - VIEWPORT_PADDING
             ) {
-                top = rect.top - menuHeight - spacing;
+                top =
+                    rect.top -
+                    menuHeight -
+                    GAP;
             }
 
-            /*
-             * Keep dropdown inside viewport horizontally.
-             */
+            if (top < VIEWPORT_PADDING) {
+                top = VIEWPORT_PADDING;
+            }
+
             let right =
                 window.innerWidth - rect.right;
 
-            if (right < 12) {
-                right = 12;
+            if (right < VIEWPORT_PADDING) {
+                right = VIEWPORT_PADDING;
             }
 
             if (
                 window.innerWidth -
                 right -
                 menuWidth <
-                12
+                VIEWPORT_PADDING
             ) {
                 right =
                     window.innerWidth -
                     menuWidth -
-                    12;
+                    VIEWPORT_PADDING;
             }
 
-            setMenuPosition({
+            setDesktopMenuPosition({
                 top,
                 right,
             });
         }
 
-        handleViewportChange();
+        updatePosition();
+
+        const frame = window.requestAnimationFrame(
+            updatePosition
+        );
 
         window.addEventListener(
             "resize",
-            handleViewportChange
+            updatePosition
         );
 
         window.addEventListener(
             "scroll",
-            handleViewportChange,
+            updatePosition,
             true
         );
 
         return () => {
+            window.cancelAnimationFrame(frame);
+
             window.removeEventListener(
                 "resize",
-                handleViewportChange
+                updatePosition
             );
 
             window.removeEventListener(
                 "scroll",
-                handleViewportChange,
+                updatePosition,
                 true
             );
         };
-    }, [menuId]);
+    }, [desktopMenuId]);
 
-    function toggleMenu(
+    /*
+     * Mobile positioning
+     * Measures the actual popup height after render.
+     */
+    useEffect(() => {
+        if (mobileMenuId === null) return;
+
+        function updatePosition() {
+            const button = document.querySelector(
+                `[data-mobile-menu-button="${mobileMenuId}"]`
+            ) as HTMLElement | null;
+
+            if (!button) return;
+
+            const rect =
+                button.getBoundingClientRect();
+
+            const menuElement =
+                mobileMenuRef.current;
+
+            const menuWidth =
+                menuElement?.getBoundingClientRect()
+                    .width ??
+                Math.min(
+                    MENU_WIDTH,
+                    window.innerWidth - 24
+                );
+
+            const menuHeight =
+                menuElement?.getBoundingClientRect()
+                    .height ??
+                INITIAL_MENU_HEIGHT;
+
+            let top = rect.bottom + GAP;
+
+            /*
+             * If the popup would go below the viewport,
+             * place it above the 3-dots button.
+             */
+            if (
+                top + menuHeight >
+                window.innerHeight - VIEWPORT_PADDING
+            ) {
+                top =
+                    rect.top -
+                    menuHeight -
+                    GAP;
+            }
+
+            /*
+             * Never allow the popup to go above the
+             * visible viewport.
+             */
+            if (top < VIEWPORT_PADDING) {
+                top = VIEWPORT_PADDING;
+            }
+
+            let right =
+                window.innerWidth - rect.right;
+
+            if (right < VIEWPORT_PADDING) {
+                right = VIEWPORT_PADDING;
+            }
+
+            if (
+                window.innerWidth -
+                right -
+                menuWidth <
+                VIEWPORT_PADDING
+            ) {
+                right =
+                    window.innerWidth -
+                    menuWidth -
+                    VIEWPORT_PADDING;
+            }
+
+            setMobileMenuPosition({
+                top,
+                right,
+            });
+        }
+
+        updatePosition();
+
+        /*
+         * Run again after the popup has actually rendered
+         * so its real height is available.
+         */
+        const frame = window.requestAnimationFrame(
+            updatePosition
+        );
+
+        window.addEventListener(
+            "resize",
+            updatePosition
+        );
+
+        window.addEventListener(
+            "scroll",
+            updatePosition,
+            true
+        );
+
+        return () => {
+            window.cancelAnimationFrame(frame);
+
+            window.removeEventListener(
+                "resize",
+                updatePosition
+            );
+
+            window.removeEventListener(
+                "scroll",
+                updatePosition,
+                true
+            );
+        };
+    }, [mobileMenuId]);
+
+    function toggleDesktopMenu(
         event: React.MouseEvent<HTMLButtonElement>,
         id: string
     ) {
         event.stopPropagation();
 
         /*
-         * Close if clicking the same button again.
+         * Clicking the same 3-dots button again closes it.
          */
-        if (menuId === id) {
-            setMenuId(null);
-            setMenuPosition(null);
+        if (desktopMenuId === id) {
+            closeDesktopMenu();
             return;
         }
 
         const rect =
             event.currentTarget.getBoundingClientRect();
 
-        const menuWidth = 224;
-        const menuHeight = 100;
-        const spacing = 8;
+        let top =
+            rect.bottom +
+            GAP;
 
-        let top = rect.bottom + spacing;
-
-        /*
-         * Open upward when near the bottom.
-         */
         if (
-            top + menuHeight >
-            window.innerHeight - 12
+            top + INITIAL_MENU_HEIGHT >
+            window.innerHeight - VIEWPORT_PADDING
         ) {
-            top = rect.top - menuHeight - spacing;
+            top =
+                rect.top -
+                INITIAL_MENU_HEIGHT -
+                GAP;
         }
 
-        /*
-         * Calculate right-side position.
-         */
+        if (top < VIEWPORT_PADDING) {
+            top = VIEWPORT_PADDING;
+        }
+
         let right =
             window.innerWidth - rect.right;
 
-        /*
-         * Prevent clipping on the right.
-         */
-        if (right < 12) {
-            right = 12;
+        if (right < VIEWPORT_PADDING) {
+            right = VIEWPORT_PADDING;
         }
 
-        /*
-         * Prevent clipping on the left.
-         */
         if (
             window.innerWidth -
             right -
-            menuWidth <
-            12
+            MENU_WIDTH <
+            VIEWPORT_PADDING
         ) {
             right =
                 window.innerWidth -
-                menuWidth -
-                12;
+                MENU_WIDTH -
+                VIEWPORT_PADDING;
         }
 
-        setMenuPosition({
+        setDesktopMenuPosition({
             top,
             right,
         });
 
-        setMenuId(id);
+        setDesktopMenuId(id);
+    }
+
+    function toggleMobileMenu(
+        event: React.MouseEvent<HTMLButtonElement>,
+        id: string
+    ) {
+        event.stopPropagation();
+
+        /*
+         * Clicking the same 3-dots button again closes it.
+         */
+        if (mobileMenuId === id) {
+            closeMobileMenu();
+            return;
+        }
+
+        const rect =
+            event.currentTarget.getBoundingClientRect();
+
+        const menuWidth = Math.min(
+            MENU_WIDTH,
+            window.innerWidth - 24
+        );
+
+        let top =
+            rect.bottom +
+            GAP;
+
+        /*
+         * Initial position before the popup is rendered.
+         * The positioning effect below then measures
+         * the real popup height and corrects it.
+         */
+        if (
+            top + INITIAL_MENU_HEIGHT >
+            window.innerHeight - VIEWPORT_PADDING
+        ) {
+            top =
+                rect.top -
+                INITIAL_MENU_HEIGHT -
+                GAP;
+        }
+
+        if (top < VIEWPORT_PADDING) {
+            top = VIEWPORT_PADDING;
+        }
+
+        let right =
+            window.innerWidth - rect.right;
+
+        if (right < VIEWPORT_PADDING) {
+            right = VIEWPORT_PADDING;
+        }
+
+        if (
+            window.innerWidth -
+            right -
+            menuWidth <
+            VIEWPORT_PADDING
+        ) {
+            right =
+                window.innerWidth -
+                menuWidth -
+                VIEWPORT_PADDING;
+        }
+
+        setMobileMenuPosition({
+            top,
+            right,
+        });
+
+        setMobileMenuId(id);
     }
 
     async function restoreFile(item: UserFile) {
-        setMenuId(null);
-        setMenuPosition(null);
+        closeMenus();
 
         try {
             const response = await fetch(
@@ -378,7 +757,8 @@ export default function TrashPage() {
 
             if (!response.ok) {
                 throw new Error(
-                    data.error || "Unable to restore file."
+                    data.error ||
+                    "Unable to restore file."
                 );
             }
 
@@ -389,8 +769,7 @@ export default function TrashPage() {
             );
 
             showToast(
-                "File restored successfully.",
-                "success"
+                "File restored successfully."
             );
         } catch (error) {
             showToast(
@@ -405,8 +784,7 @@ export default function TrashPage() {
     async function permanentlyDeleteFile(
         item: UserFile
     ) {
-        setMenuId(null);
-        setMenuPosition(null);
+        closeMenus();
 
         try {
             const response = await fetch(
@@ -420,7 +798,8 @@ export default function TrashPage() {
                 const data = await response.json();
 
                 throw new Error(
-                    data.error || "Unable to delete file."
+                    data.error ||
+                    "Unable to delete file."
                 );
             }
 
@@ -431,8 +810,7 @@ export default function TrashPage() {
             );
 
             showToast(
-                "File permanently deleted.",
-                "success"
+                "File permanently deleted."
             );
         } catch (error) {
             showToast(
@@ -445,68 +823,79 @@ export default function TrashPage() {
     }
 
     const visibleFiles = useMemo(() => {
-        const result = allFiles.filter((file) => {
-            const matchesSearch = file.name
-                .toLowerCase()
-                .includes(search.toLowerCase());
+        const query =
+            search.trim().toLowerCase();
 
-            const isInTrash = file.isDeleted;
+        return allFiles
+            .filter(
+                (file) =>
+                    file.isDeleted &&
+                    file.name
+                        .toLowerCase()
+                        .includes(query)
+            )
+            .sort((a, b) => {
+                if (sort === "name") {
+                    return a.name.localeCompare(
+                        b.name
+                    );
+                }
 
-            return matchesSearch && isInTrash;
-        });
+                if (sort === "size") {
+                    return (
+                        Number(b.size) -
+                        Number(a.size)
+                    );
+                }
 
-        return [...result].sort((a, b) => {
-            if (sort === "name") {
-                return a.name.localeCompare(b.name);
-            }
+                const first = new Date(
+                    a.createdAt
+                ).getTime();
 
-            if (sort === "size") {
-                return (
-                    Number(b.size) -
-                    Number(a.size)
-                );
-            }
+                const second = new Date(
+                    b.createdAt
+                ).getTime();
 
-            const first = new Date(
-                a.createdAt
-            ).getTime();
-
-            const second = new Date(
-                b.createdAt
-            ).getTime();
-
-            return sort === "newest"
-                ? second - first
-                : first - second;
-        });
+                return sort === "newest"
+                    ? second - first
+                    : first - second;
+            });
     }, [allFiles, search, sort]);
 
-    const selectedFile =
-        menuId !== null
+    const desktopSelectedFile =
+        desktopMenuId
             ? visibleFiles.find(
-                (file) => file.id === menuId
+                (file) =>
+                    file.id === desktopMenuId
+            ) ?? null
+            : null;
+
+    const mobileSelectedFile =
+        mobileMenuId
+            ? visibleFiles.find(
+                (file) =>
+                    file.id === mobileMenuId
             ) ?? null
             : null;
 
     return (
-        <main className="h-full overflow-hidden bg-[#f5f7fb] text-slate-900">
-            {/* Toast */}
+        <main className="min-h-full bg-[#f5f7fb] text-slate-900">
             {toast && (
-                <div className="fixed right-5 top-5 z-[100] w-[calc(100%-40px)] max-w-sm">
+                <div className="fixed right-4 top-4 z-[100] w-[calc(100%-32px)] max-w-sm sm:right-5 sm:top-5">
                     <div
-                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl ${toast.type === "success"
-                                ? "border-emerald-200 bg-white text-emerald-700"
-                                : toast.type === "error"
-                                    ? "border-red-200 bg-white text-red-700"
-                                    : "border-slate-200 bg-white text-slate-700"
+                        className={`flex items-center gap-3 rounded-2xl border bg-white px-4 py-3 shadow-xl ${toast.type === "success"
+                            ? "border-emerald-200 text-emerald-700"
+                            : toast.type === "error"
+                                ? "border-red-200 text-red-700"
+                                : "border-slate-200 text-slate-700"
                             }`}
                     >
                         <div
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${toast.type === "success"
-                                    ? "bg-emerald-100"
-                                    : toast.type === "error"
-                                        ? "bg-red-100"
-                                        : "bg-slate-100"
+                                ? "bg-emerald-100"
+                                : toast.type === "error"
+                                    ? "bg-red-100"
+                                    : "bg-slate-100"
                                 }`}
                         >
                             {toast.type === "success"
@@ -516,13 +905,16 @@ export default function TrashPage() {
                                     : "i"}
                         </div>
 
-                        <p className="flex-1 text-sm font-medium">
+                        <p className="min-w-0 flex-1 text-sm font-medium">
                             {toast.text}
                         </p>
 
                         <button
-                            onClick={() => setToast(null)}
-                            className="rounded-lg px-2 py-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                            type="button"
+                            onClick={() =>
+                                setToast(null)
+                            }
+                            className="rounded-lg px-2 py-1 text-lg leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                         >
                             ×
                         </button>
@@ -530,35 +922,34 @@ export default function TrashPage() {
                 </div>
             )}
 
-            {/* Page */}
-            <div className="mx-auto max-w-[1500px] px-5 py-8 sm:px-8">
-                <section className="mt-8">
-                    {/* Header */}
-                    <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+            <div className="mx-auto w-full max-w-[1500px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <section className="mt-4 sm:mt-8">
+                    <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
                         <div>
                             <p className="text-sm font-medium text-[#1e3a5f]">
                                 Workspace
                             </p>
 
-                            <h2 className="mt-1 text-2xl font-bold tracking-tight">
+                            <h1 className="mt-1 text-2xl font-bold tracking-tight">
                                 Trash
-                            </h2>
+                            </h1>
 
                             <p className="mt-1 text-sm text-slate-500">
-                                {visibleFiles.length} deleted{" "}
-                                {visibleFiles.length === 1
+                                {visibleFiles.length}{" "}
+                                deleted{" "}
+                                {visibleFiles.length ===
+                                    1
                                     ? "file"
                                     : "files"}
                             </p>
                         </div>
 
-                        {/* Search + Sort */}
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <div className="relative">
+                        <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                            <div className="relative flex-1 sm:flex-none">
                                 <svg
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                                    width="17"
-                                    height="17"
+                                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                                    width="16"
+                                    height="16"
                                     fill="none"
                                     stroke="currentColor"
                                     strokeWidth="2"
@@ -569,7 +960,6 @@ export default function TrashPage() {
                                         cy="11"
                                         r="7"
                                     />
-
                                     <path d="m20 20-4-4" />
                                 </svg>
 
@@ -590,27 +980,20 @@ export default function TrashPage() {
                                 onChange={(event) =>
                                     setSort(
                                         event.target
-                                            .value as
-                                        | "newest"
-                                        | "oldest"
-                                        | "name"
-                                        | "size"
+                                            .value as SortOption
                                     )
                                 }
-                                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium outline-none transition focus:border-[#6f8da8] focus:ring-4 focus:ring-[#1e3a5f]/10"
+                                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#6f8da8] focus:ring-4 focus:ring-[#1e3a5f]/10 sm:w-auto"
                             >
                                 <option value="newest">
                                     Newest
                                 </option>
-
                                 <option value="oldest">
                                     Oldest
                                 </option>
-
                                 <option value="name">
                                     Name
                                 </option>
-
                                 <option value="size">
                                     Largest
                                 </option>
@@ -618,7 +1001,6 @@ export default function TrashPage() {
                         </div>
                     </div>
 
-                    {/* Loading */}
                     {loading ? (
                         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                             <div className="divide-y divide-slate-100">
@@ -626,14 +1008,13 @@ export default function TrashPage() {
                                     (item) => (
                                         <div
                                             key={item}
-                                            className="px-5 py-4"
+                                            className="px-4 py-4 sm:px-5"
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="h-11 w-11 animate-pulse rounded-xl bg-slate-200" />
+                                                <div className="h-11 w-11 shrink-0 animate-pulse rounded-xl bg-slate-200" />
 
                                                 <div className="flex-1 space-y-2">
-                                                    <div className="h-4 w-40 animate-pulse rounded bg-slate-200" />
-
+                                                    <div className="h-4 w-40 max-w-full animate-pulse rounded bg-slate-200" />
                                                     <div className="h-3 w-20 animate-pulse rounded bg-slate-100" />
                                                 </div>
                                             </div>
@@ -643,8 +1024,7 @@ export default function TrashPage() {
                             </div>
                         </div>
                     ) : visibleFiles.length === 0 ? (
-                        /* Empty */
-                        <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center shadow-sm">
+                        <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-14 text-center shadow-sm">
                             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                                 <svg
                                     width="25"
@@ -658,43 +1038,121 @@ export default function TrashPage() {
                                 </svg>
                             </div>
 
-                            <h3 className="mt-5 font-semibold text-slate-800">
+                            <h2 className="mt-5 font-semibold text-slate-800">
                                 Trash is empty
-                            </h3>
+                            </h2>
 
                             <p className="mt-1 text-sm text-slate-500">
-                                Deleted files will appear here.
+                                Deleted files will appear
+                                here.
                             </p>
                         </div>
                     ) : (
-                        /* Files */
-                        <div className="relative mt-5 overflow-visible rounded-2xl border border-slate-200 bg-white shadow-sm">
-                            {/* Table header */}
-                            <div className="hidden border-b border-slate-100 bg-slate-50/80 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 md:grid md:grid-cols-[minmax(0,1fr)_120px_130px_50px] md:gap-4">
-                                <span>File</span>
-                                <span>Access</span>
-                                <span>Modified</span>
-                                <span />
-                            </div>
+                        <>
+                            {/* Desktop */}
+                            <div className="mt-5 hidden overflow-visible rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
+                                <div className="grid grid-cols-[minmax(0,1fr)_120px_130px_50px] gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                    <span>File</span>
+                                    <span>Access</span>
+                                    <span>Modified</span>
+                                    <span />
+                                </div>
 
-                            <div className="divide-y divide-slate-100">
-                                {visibleFiles.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="group relative px-5 py-4 transition hover:bg-slate-50/70"
-                                    >
-                                        <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_120px_130px_50px] md:items-center md:gap-4">
-                                            {/* File */}
-                                            <div className="flex min-w-0 items-center gap-3">
-                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef4f8] text-[10px] font-bold text-[#1e3a5f] ring-1 ring-[#d5e0eb]">
-                                                    {getFileIcon(
-                                                        item.mimeType
-                                                    )}
+                                <div className="divide-y divide-slate-100">
+                                    {visibleFiles.map(
+                                        (item) => (
+                                            <div
+                                                key={item.id}
+                                                className="grid grid-cols-[minmax(0,1fr)_120px_130px_50px] items-center gap-4 px-5 py-4 transition hover:bg-slate-50/70"
+                                            >
+                                                <div className="flex min-w-0 items-center gap-3">
+                                                    <FileIcon
+                                                        mimeType={
+                                                            item.mimeType
+                                                        }
+                                                    />
+
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-sm font-semibold text-slate-800">
+                                                            {
+                                                                item.name
+                                                            }
+                                                        </p>
+
+                                                        <p className="mt-1 text-xs text-slate-400">
+                                                            {formatSize(
+                                                                item.size
+                                                            )}
+                                                        </p>
+                                                    </div>
                                                 </div>
 
-                                                <div className="min-w-0">
-                                                    <p className="truncate text-sm font-semibold text-slate-800">
-                                                        {item.name}
+                                                <AccessBadge
+                                                    isPublic={
+                                                        item.isPublic
+                                                    }
+                                                />
+
+                                                <p className="text-xs text-slate-500">
+                                                    {formatDate(
+                                                        item.createdAt
+                                                    )}
+                                                </p>
+
+                                                <div className="flex justify-end">
+                                                    <button
+                                                        type="button"
+                                                        data-desktop-menu-button={
+                                                            item.id
+                                                        }
+                                                        onClick={(
+                                                            event
+                                                        ) =>
+                                                            toggleDesktopMenu(
+                                                                event,
+                                                                item.id
+                                                            )
+                                                        }
+                                                        aria-label={`Actions for ${item.name}`}
+                                                        aria-expanded={
+                                                            desktopMenuId ===
+                                                            item.id
+                                                        }
+                                                        className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${desktopMenuId ===
+                                                            item.id
+                                                            ? "bg-slate-100 text-slate-700"
+                                                            : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                                            }`}
+                                                    >
+                                                        <MoreIcon />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Mobile */}
+                            <div className="mt-5 space-y-3 md:hidden">
+                                {visibleFiles.map(
+                                    (item) => (
+                                        <div
+                                            key={item.id}
+                                            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <FileIcon
+                                                    mimeType={
+                                                        item.mimeType
+                                                    }
+                                                />
+
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="break-all text-sm font-semibold leading-5 text-slate-800">
+                                                        {
+                                                            item.name
+                                                        }
                                                     </p>
 
                                                     <p className="mt-1 text-xs text-slate-400">
@@ -703,205 +1161,90 @@ export default function TrashPage() {
                                                         )}
                                                     </p>
                                                 </div>
-                                            </div>
 
-                                            {/* Access */}
-                                            <div>
-                                                <span
-                                                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${item.isPublic
-                                                            ? "bg-emerald-50 text-emerald-700"
-                                                            : "bg-slate-100 text-slate-600"
-                                                        }`}
-                                                >
-                                                    <span
-                                                        className={`h-1.5 w-1.5 rounded-full ${item.isPublic
-                                                                ? "bg-emerald-500"
-                                                                : "bg-slate-400"
-                                                            }`}
-                                                    />
-
-                                                    {item.isPublic
-                                                        ? "Public"
-                                                        : "Private"}
-                                                </span>
-                                            </div>
-
-                                            {/* Modified */}
-                                            <p className="text-xs text-slate-500">
-                                                {formatDate(
-                                                    item.createdAt
-                                                )}
-                                            </p>
-
-                                            {/* Menu button */}
-                                            <div className="flex justify-start md:justify-end">
                                                 <button
                                                     type="button"
-                                                    data-menu-button={
+                                                    data-mobile-menu-button={
                                                         item.id
                                                     }
-                                                    onClick={(event) =>
-                                                        toggleMenu(
+                                                    onClick={(
+                                                        event
+                                                    ) =>
+                                                        toggleMobileMenu(
                                                             event,
                                                             item.id
                                                         )
                                                     }
                                                     aria-label={`Actions for ${item.name}`}
                                                     aria-expanded={
-                                                        menuId === item.id
+                                                        mobileMenuId ===
+                                                        item.id
                                                     }
-                                                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${menuId === item.id
-                                                            ? "bg-slate-100 text-slate-700"
-                                                            : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${mobileMenuId ===
+                                                        item.id
+                                                        ? "bg-slate-100 text-slate-700"
+                                                        : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                                                         }`}
                                                 >
-                                                    <svg
-                                                        width="18"
-                                                        height="18"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        strokeWidth="2"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <circle
-                                                            cx="5"
-                                                            cy="12"
-                                                            r="1"
-                                                        />
-
-                                                        <circle
-                                                            cx="12"
-                                                            cy="12"
-                                                            r="1"
-                                                        />
-
-                                                        <circle
-                                                            cx="19"
-                                                            cy="12"
-                                                            r="1"
-                                                        />
-                                                    </svg>
+                                                    <MoreIcon />
                                                 </button>
                                             </div>
+
+                                            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                                                <AccessBadge
+                                                    isPublic={
+                                                        item.isPublic
+                                                    }
+                                                />
+
+                                                <span className="text-xs text-slate-400">
+                                                    {formatDate(
+                                                        item.createdAt
+                                                    )}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                )}
                             </div>
-                        </div>
+                        </>
                     )}
                 </section>
 
-                <footer className="py-10 text-center text-xs text-slate-400">
+                <footer className="py-8 text-center text-xs text-slate-400 sm:py-10">
                     Cloudy · Store. Share. Secure.
                 </footer>
             </div>
 
-            {/* =====================================================
-          FIXED DROPDOWN
-          =====================================================
+            {desktopSelectedFile &&
+                desktopMenuPosition && (
+                    <FileActionsMenu
+                        file={desktopSelectedFile}
+                        position={
+                            desktopMenuPosition
+                        }
+                        menuRef={desktopMenuRef}
+                        onRestore={restoreFile}
+                        onDelete={
+                            permanentlyDeleteFile
+                        }
+                    />
+                )}
 
-          IMPORTANT:
-          This is OUTSIDE the card.
-
-          Therefore:
-          - card overflow cannot clip it
-          - one-row cards cannot hide it
-          - last-row dropdown can open upward
-          - z-index works correctly
-      */}
-            {selectedFile &&
-                menuId !== null &&
-                menuPosition && (
-                    <div
-                        ref={menuRef}
-                        className="fixed z-[9999] w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)] ring-1 ring-black/5"
-                        style={{
-                            top: menuPosition.top,
-                            right: menuPosition.right,
-                        }}
-                    >
-                        <div className="px-3 pb-2 pt-2">
-                            <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                                File actions
-                            </p>
-
-                            <p className="mt-1 truncate text-xs font-medium text-slate-600">
-                                {selectedFile.name}
-                            </p>
-                        </div>
-
-                        <div className="h-px bg-slate-100" />
-
-                        {/* Restore */}
-                        <button
-                            type="button"
-                            onClick={() =>
-                                restoreFile(selectedFile)
-                            }
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                        >
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-                                <svg
-                                    width="16"
-                                    height="16"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.8"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path d="M3 12a9 9 0 1 0 3-6.7" />
-                                    <path d="M3 4v5h5" />
-                                </svg>
-                            </span>
-
-                            <span>
-                                <span className="block">
-                                    Restore file
-                                </span>
-
-                                <span className="mt-0.5 block text-[11px] font-normal text-slate-400">
-                                    Move back to My Files
-                                </span>
-                            </span>
-                        </button>
-
-                        {/* Permanently delete */}
-                        <button
-                            type="button"
-                            onClick={() =>
-                                permanentlyDeleteFile(
-                                    selectedFile
-                                )
-                            }
-                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
-                        >
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-500">
-                                <svg
-                                    width="16"
-                                    height="16"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.8"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path d="M4 7h16" />
-                                    <path d="M10 11v6M14 11v6" />
-                                    <path d="M6 7l1 13h10l1-13" />
-                                    <path d="M9 7V4h6v3" />
-                                </svg>
-                            </span>
-
-                            <span>
-                                <span className="block">
-                                    Delete permanently
-                                </span>
-
-                                <span className="mt-0.5 block text-[11px] font-normal text-red-400">
-                                    Cannot be undone
-                                </span>
-                            </span>
-                        </button>
-                    </div>
+            {mobileSelectedFile &&
+                mobileMenuPosition && (
+                    <FileActionsMenu
+                        file={mobileSelectedFile}
+                        position={
+                            mobileMenuPosition
+                        }
+                        menuRef={mobileMenuRef}
+                        onRestore={restoreFile}
+                        onDelete={
+                            permanentlyDeleteFile
+                        }
+                        mobile
+                    />
                 )}
         </main>
     );
