@@ -809,6 +809,8 @@ export default function TrashPage() {
                 )
             );
 
+            window.dispatchEvent(new Event("storage-updated"));
+
             showToast(
                 "File permanently deleted."
             );

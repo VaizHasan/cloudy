@@ -948,6 +948,8 @@ export default function DashboardPage() {
                 loadStorage(),
             ]);
 
+            window.dispatchEvent(new Event("storage-updated"));
+
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
             }
@@ -1419,6 +1421,9 @@ export default function DashboardPage() {
              * usage for deleted files.
              */
             await loadStorage();
+
+            window.dispatchEvent(new Event("storage-updated"));
+
         } catch (error) {
             showToast(
                 error instanceof Error

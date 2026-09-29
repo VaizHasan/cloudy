@@ -149,8 +149,6 @@ export default function DashboardLayout({
 
     async function loadStorage() {
       try {
-        setLoadingStorage(true);
-
         const response = await fetch("/api/storage", {
           method: "GET",
           credentials: "include",
@@ -182,8 +180,21 @@ export default function DashboardLayout({
 
     loadStorage();
 
+    function handleStorageUpdated() {
+      loadStorage();
+    }
+
+    window.addEventListener(
+      "storage-updated",
+      handleStorageUpdated
+    );
+
     return () => {
       mounted = false;
+      window.removeEventListener(
+        "storage-updated",
+        handleStorageUpdated
+      );
     };
   }, []);
 

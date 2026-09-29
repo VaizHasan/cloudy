@@ -39,9 +39,6 @@ export async function GET() {
             select: {
                 storageQuota: true,
                 files: {
-                    where: {
-                        isDeleted: false,
-                    },
                     select: {
                         size: true,
                     },
